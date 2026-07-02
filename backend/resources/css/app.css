@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* WhatsApp Theme */
+:root {
+    --wa-teal: #075E54;
+    --wa-green: #25D366;
+    --wa-green-light: #DCF8C6;
+    --wa-green-dark: #128C7E;
+    --wa-bg: #ECE5DD;
+    --wa-bg-dark: #111B21;
+    --wa-header: #075E54;
+    --wa-white: #FFFFFF;
+    --wa-gray: #667781;
+    --wa-border: #E9EDEF;
+    --wa-bubble-mine: #D9FDD3;
+    --wa-bubble-other: #FFFFFF;
+    --wa-input: #F0F2F5;
+    --wa-unread: #25D366;
+}
+
+/* Chat background pattern (WhatsApp style) */
+.chat-bg {
+    background-color: #ECE5DD;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D1C7B7' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.dark .chat-bg {
+    background-color: #0B141A;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2336413D' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Message bubble tail */
+.wa-bubble-mine {
+    background-color: var(--wa-bubble-mine);
+    border-radius: 8px 0 8px 8px;
+}
+
+.wa-bubble-other {
+    background-color: var(--wa-bubble-other);
+    border-radius: 0 8px 8px 8px;
+}
+
+/* Scrollbar styling */
+.wa-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+.wa-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+.wa-scroll::-webkit-scrollbar-thumb {
+    background: #CCC;
+    border-radius: 3px;
+}
+
+/* ===== Safari & Browser Fixes ===== */
+
+/* Fix 100vh issue on iOS Safari - use dvh */
+@supports (height: 100dvh) {
+    .h-screen-fix {
+        height: 100dvh;
+    }
+    .min-h-screen-fix {
+        min-height: 100dvh;
+    }
+}
+
+/* Remove default input appearance on Safari */
+input, textarea, select, button {
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* Fix iOS input zoom - ensure 16px minimum font size */
+input, textarea, select {
+    font-size: 16px !important;
+}
+
+/* Prevent iOS Safari from zooming on focus */
+@supports (-webkit-touch-callout: none) {
+    input, textarea, select {
+        font-size: 16px !important;
+    }
+}
+
+/* Smooth scrolling for all browsers */
+html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Safe area padding for iOS notch/home indicator */
+@supports (padding: env(safe-area-inset-bottom)) {
+    .safe-area-bottom {
+        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    }
+}
