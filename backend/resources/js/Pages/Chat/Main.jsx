@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 
 export default function ChatMain({ conversations, activeConversation, messages: initialMessages }) {
@@ -18,8 +18,11 @@ export default function ChatMain({ conversations, activeConversation, messages: 
 
     // Chat state
     const conv = activeConversation;
+    const convRef = useRef(conv);
+    convRef.current = conv;
     const initialMsgs = initialMessages;
     const [messages, setMessages] = useState(initialMsgs?.data || []);
+    const [convList, setConvList] = useState(conversations);
     const [pagination, setPagination] = useState(initialMsgs || { data: [] });
     const [loading, setLoading] = useState(false);
     const [dragOver, setDragOver] = useState(false);
@@ -65,13 +68,14 @@ export default function ChatMain({ conversations, activeConversation, messages: 
         setConfirmDelete(null);
     };
 
-    // Sync messages when activeConversation changes
+    // Sync messages & conversations when activeConversation changes
     useEffect(() => {
         setMessages(initialMsgs?.data || []);
         setPagination(initialMsgs || { data: [] });
+        setConvList(conversations);
         prevLen.current = 0;
         if (activeConversation) setMobileView('chat');
-    }, [activeConversation, initialMsgs]);
+    }, [activeConversation, initialMsgs, conversations]);
 
     const toggleMember = (userId) => {
         const current = data.members;
@@ -113,19 +117,43 @@ export default function ChatMain({ conversations, activeConversation, messages: 
         } else if (Notification.permission !== 'denied') {
             Notification.requestPermission();
         }
-        document.title = '🔴 ' + title;
-        setTimeout(() => {
-            document.title = title + ' - ' + (import.meta.env.VITE_APP_NAME || 'Laravel');
-        }, 5000);
     }, []);
 
-    // Echo real-time
+    // Echo real-time — listen on active conversation channel
     useEffect(() => {
         if (typeof window.initializeEcho === 'function') window.initializeEcho();
         if (typeof window.Echo !== 'undefined' && conv) {
             const channel = window.Echo.private(`conversation.${conv.id}`);
             channel.listen('.message.sent', (e) => {
                 setMessages((prev) => [...prev, e]);
+                // Update sidebar for incoming messages
+                setConvList((prev) => {
+                    const updated = prev.map((c) => {
+                        if (c.id === e.conversation_id) {
+                            const isSameConv = convRef.current?.id === e.conversation_id;
+                            return {
+                                ...c,
+                                last_message: {
+                                    id: e.id,
+                                    conversation_id: e.conversation_id,
+                                    sender_id: e.sender_id,
+                                    tipe_pesan: e.tipe_pesan,
+                                    isi_pesan: e.isi_pesan,
+                                    file_name: e.file_name,
+                                    created_at: e.created_at,
+                                },
+                                unread_count: isSameConv ? (c.unread_count || 0) : (c.unread_count || 0) + 1,
+                            };
+                        }
+                        return c;
+                    });
+                    updated.sort((a, b) => {
+                        const aTime = a.last_message?.created_at || a.created_at;
+                        const bTime = b.last_message?.created_at || b.created_at;
+                        return new Date(bTime) - new Date(aTime);
+                    });
+                    return [...updated];
+                });
                 if (e.sender_id !== auth.user.id) {
                     playNotificationSound();
                     const senderName = e.sender?.name || 'Seseorang';
@@ -136,6 +164,46 @@ export default function ChatMain({ conversations, activeConversation, messages: 
             return () => channel.stopListening('.message.sent');
         }
     }, [conv?.id, auth.user.id]);
+
+    // Echo real-time — listen on user's own channel for sidebar updates
+    useEffect(() => {
+        if (typeof window.initializeEcho === 'function') window.initializeEcho();
+        if (typeof window.Echo !== 'undefined' && auth.user?.id) {
+            const channel = window.Echo.private(`App.Models.User.${auth.user.id}`);
+            channel.listen('.conversation.new.message', (e) => {
+                const isActiveConv = convRef.current?.id === e.conversation_id;
+                setConvList((prev) => {
+                    const updated = prev.map((c) => {
+                        if (c.id === e.conversation_id) {
+                            return {
+                                ...c,
+                                last_message: {
+                                    id: e.id,
+                                    conversation_id: e.conversation_id,
+                                    sender_id: e.sender_id,
+                                    tipe_pesan: e.tipe_pesan,
+                                    isi_pesan: e.isi_pesan,
+                                    file_name: e.file_name,
+                                    created_at: e.created_at,
+                                },
+                                // Don't increment unread if user is viewing this conversation
+                                unread_count: isActiveConv ? (c.unread_count || 0) : (c.unread_count || 0) + 1,
+                            };
+                        }
+                        return c;
+                    });
+                    // Sort: most recent conversation first
+                    updated.sort((a, b) => {
+                        const aTime = a.last_message?.created_at || a.created_at;
+                        const bTime = b.last_message?.created_at || b.created_at;
+                        return new Date(bTime) - new Date(aTime);
+                    });
+                    return [...updated];
+                });
+            });
+            return () => channel.stopListening('.conversation.new.message');
+        }
+    }, [auth.user?.id]);
 
     // Mark as read
     useEffect(() => {
@@ -231,7 +299,38 @@ export default function ChatMain({ conversations, activeConversation, messages: 
                 responseData = res.data;
                 setUploadProgress(null);
             }
-            if (responseData) setMessages((prev) => prev.map((msg) => msg.id === tempId ? responseData : msg));
+            if (responseData) {
+                setMessages((prev) => prev.map((msg) => msg.id === tempId ? responseData : msg));
+                // Update sidebar with sent message
+                if (conv) {
+                    setConvList((prev) => {
+                        const updated = prev.map((c) => {
+                            if (c.id === conv.id) {
+                                return {
+                                    ...c,
+                                    unread_count: 0,
+                                    last_message: {
+                                        id: responseData.id,
+                                        conversation_id: conv.id,
+                                        sender_id: auth.user.id,
+                                        tipe_pesan: responseData.tipe_pesan,
+                                        isi_pesan: responseData.isi_pesan,
+                                        file_name: responseData.file_name,
+                                        created_at: responseData.created_at,
+                                    },
+                                };
+                            }
+                            return c;
+                        });
+                        updated.sort((a, b) => {
+                            const aTime = a.last_message?.created_at || a.created_at;
+                            const bTime = b.last_message?.created_at || b.created_at;
+                            return new Date(bTime) - new Date(aTime);
+                        });
+                        return [...updated];
+                    });
+                }
+            }
         } catch (err) { console.error('Send failed:', err); setUploadProgress(null); }
     };
 
@@ -262,6 +361,20 @@ export default function ChatMain({ conversations, activeConversation, messages: 
         if (hours < 24) return 'last seen ' + hours + 'h ago';
         return 'last seen ' + Math.floor(hours / 24) + 'd ago';
     };
+
+    const totalUnread = useMemo(() => {
+        return convList.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+    }, [convList]);
+
+    // Update document title with unread count
+    useEffect(() => {
+        const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+        if (totalUnread > 0) {
+            document.title = `(${totalUnread}) ${appName}`;
+        } else {
+            document.title = appName;
+        }
+    }, [totalUnread]);
 
     const selectConversation = (id) => {
         router.get('/chat/' + id, {}, { preserveState: true, preserveScroll: true });
@@ -295,8 +408,13 @@ export default function ChatMain({ conversations, activeConversation, messages: 
                     <div className="relative" ref={menuRef}>
                         <button onClick={() => setShowMenu(!showMenu)}
                             className="flex items-center gap-2 rounded-full py-1 pr-2 hover:bg-white/10">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                            <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
                                 {auth.user?.name?.charAt(0).toUpperCase() || '?'}
+                                {totalUnread > 0 && (
+                                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-[#075E54]">
+                                        {totalUnread > 99 ? '99+' : totalUnread}
+                                    </span>
+                                )}
                             </div>
                             <span className="hidden sm:block text-sm font-medium max-w-[120px] truncate">{auth.user?.name}</span>
                         </button>
@@ -333,12 +451,12 @@ export default function ChatMain({ conversations, activeConversation, messages: 
                 </div>
                 {/* List */}
                 <div className="flex-1 overflow-y-auto wa-scroll">
-                    {conversations.length === 0 ? (
+                    {convList.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-gray-500">
                             <p className="text-sm">Belum ada percakapan</p>
                         </div>
                     ) : (
-                        conversations.map((c) => {
+                        convList.map((c) => {
                             const ou = c.members?.filter((m) => m.id !== auth.user.id);
                             const name = c.tipe === 'grup' ? c.nama_grup : ou?.map((m) => m.name).join(', ');
                             const init = c.tipe === 'grup' ? (c.nama_grup || 'G').charAt(0).toUpperCase()
@@ -396,10 +514,15 @@ export default function ChatMain({ conversations, activeConversation, messages: 
                     <>
                         {/* Chat Header */}
                         <div className="flex items-center gap-3 bg-[#075E54] px-4 py-3 text-white shadow-sm">
-                            <button onClick={() => setMobileView('list')} className="flex sm:hidden items-center justify-center rounded-full p-1 hover:bg-white/10">
+                            <button onClick={() => setMobileView('list')} className="relative flex sm:hidden items-center justify-center rounded-full p-1 hover:bg-white/10">
                                 <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
                                 </svg>
+                                {totalUnread > 0 && (
+                                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-[#075E54]">
+                                        {totalUnread > 99 ? '99+' : totalUnread}
+                                    </span>
+                                )}
                             </button>
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#DFE5E7] text-sm font-bold text-[#54656F]">
                                 {conv.tipe === 'grup' ? (conv.nama_grup || 'G').charAt(0).toUpperCase()
@@ -581,14 +704,16 @@ export default function ChatMain({ conversations, activeConversation, messages: 
                             </button>
                         </div>
                         <form onSubmit={createConversation}>
-                            <div className="mb-4">
-                                <label className="mb-1 block text-xs font-medium text-gray-500">Tipe</label>
-                                <select value={data.tipe} onChange={(e) => setData('tipe', e.target.value)}
-                                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#25D366]">
-                                    <option value="personal">Personal</option>
-                                    <option value="grup">Grup</option>
-                                </select>
-                            </div>
+                            {auth.user?.role !== 'guest' && (
+                                <div className="mb-4">
+                                    <label className="mb-1 block text-xs font-medium text-gray-500">Tipe</label>
+                                    <select value={data.tipe} onChange={(e) => setData('tipe', e.target.value)}
+                                        className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm outline-none focus:border-[#25D366]">
+                                        <option value="personal">Personal</option>
+                                        <option value="grup">Grup</option>
+                                    </select>
+                                </div>
+                            )}
                             {data.tipe === 'grup' && (
                                 <div className="mb-4">
                                     <label className="mb-1 block text-xs font-medium text-gray-500">Nama Grup</label>

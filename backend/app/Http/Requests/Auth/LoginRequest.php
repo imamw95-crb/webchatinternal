@@ -26,10 +26,22 @@ class LoginRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'username' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:8'],
+        $loginType = $this->input('login_type', 'pasien');
+
+        $rules = [
+            'login_type' => ['required', 'in:pasien,petugas'],
         ];
+
+        if ($loginType === 'petugas') {
+            $rules['username'] = ['required', 'string'];
+            $rules['password'] = ['required', 'string', 'min:8'];
+            $rules['remember'] = ['boolean'];
+        } else {
+            $rules['no_rm'] = ['required', 'string'];
+            $rules['captcha_answer'] = ['required', 'integer'];
+        }
+
+        return $rules;
     }
 
     /**
@@ -38,6 +50,20 @@ class LoginRequest extends FormRequest
      * @throws ValidationException
      */
     public function authenticate(): void
+    {
+        $loginType = $this->input('login_type', 'pasien');
+
+        if ($loginType === 'petugas') {
+            $this->authenticatePetugas();
+        } else {
+            $this->authenticatePasien();
+        }
+    }
+
+    /**
+     * Authenticate staff (admin, CS, internal) with username + password.
+     */
+    protected function authenticatePetugas(): void
     {
         $this->ensureIsNotRateLimited();
 
@@ -50,6 +76,24 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+    }
+
+    /**
+     * Authenticate guest/pasien with no_rm only (no password).
+     */
+    protected function authenticatePasien(): void
+    {
+        $no_rm = $this->input('no_rm');
+
+        $user = \App\Models\User::where('no_rm', $no_rm)->first();
+
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'no_rm' => 'No. Rekam Medis tidak ditemukan.',
+            ]);
+        }
+
+        Auth::login($user);
     }
 
     /**
@@ -67,8 +111,10 @@ class LoginRequest extends FormRequest
 
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
+        $field = $this->input('login_type') === 'petugas' ? 'username' : 'no_rm';
+
         throw ValidationException::withMessages([
-            'username' => trans('auth.throttle', [
+            $field => trans('auth.throttle', [
                 'seconds' => $seconds,
                 'minutes' => ceil($seconds / 60),
             ]),
@@ -80,6 +126,10 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('username')).'|'.$this->ip());
+        $identifier = $this->input('login_type') === 'petugas'
+            ? $this->string('username')
+            : $this->string('no_rm');
+
+        return Str::transliterate(Str::lower($identifier).'|'.$this->ip());
     }
 }

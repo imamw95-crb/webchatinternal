@@ -50,17 +50,28 @@ export default function Welcome({ auth }) {
                     Chat real-time, kirim file, dan tetap terhubung dimanapun.
                 </p>
 
-                {/* CTA Button */}
+                {/* CTA Buttons */}
                 {!auth.user ? (
-                    <Link
-                        href={route('login')}
-                        className="group relative inline-flex items-center gap-3 overflow-hidden rounded-full bg-white px-8 py-3.5 text-base font-semibold text-[#075E54] shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95"
-                    >
-                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5a2 2 0 00-2 2v4h2V5h14v14H5v-4H3v4a2 2 0 002 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
-                        </svg>
-                        Masuk ke Aplikasi
-                    </Link>
+                    <div className="flex flex-col items-center gap-3 sm:flex-row">
+                        <Link
+                            href={route('login')}
+                            className="group relative inline-flex items-center gap-3 overflow-hidden rounded-full bg-white px-8 py-3.5 text-base font-semibold text-[#075E54] shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95"
+                        >
+                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5a2 2 0 00-2 2v4h2V5h14v14H5v-4H3v4a2 2 0 002 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+                            </svg>
+                            Masuk ke Aplikasi
+                        </Link>
+                        <Link
+                            href={route('public.guest.chat.create')}
+                            className="group relative inline-flex items-center gap-3 overflow-hidden rounded-full border-2 border-white/30 bg-white/10 px-8 py-3.5 text-base font-semibold text-white shadow-lg backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:shadow-xl hover:scale-105 active:scale-95"
+                        >
+                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
+                            </svg>
+                            Chat Customer Service
+                        </Link>
+                    </div>
                 ) : (
                     <Link
                         href={route('chat.main')}

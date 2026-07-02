@@ -169,17 +169,19 @@ export default function ChatIndex({ conversations }) {
                             </button>
                         </div>
                         <form onSubmit={createConversation}>
-                            <div className="mb-4">
-                                <label className="mb-1 block text-xs font-medium text-[#667781]">Tipe</label>
-                                <select
-                                    value={data.tipe}
-                                    onChange={(e) => setData('tipe', e.target.value)}
-                                    className="w-full rounded-lg border border-[#E9EDEF] bg-[#F0F2F5] px-3 py-2.5 text-sm outline-none focus:border-[#25D366] dark:border-[#313D45] dark:bg-[#2A3942] dark:text-white"
-                                >
-                                    <option value="personal">Personal</option>
-                                    <option value="grup">Grup</option>
-                                </select>
-                            </div>
+                            {auth.user?.role !== 'guest' && (
+                                <div className="mb-4">
+                                    <label className="mb-1 block text-xs font-medium text-[#667781]">Tipe</label>
+                                    <select
+                                        value={data.tipe}
+                                        onChange={(e) => setData('tipe', e.target.value)}
+                                        className="w-full rounded-lg border border-[#E9EDEF] bg-[#F0F2F5] px-3 py-2.5 text-sm outline-none focus:border-[#25D366] dark:border-[#313D45] dark:bg-[#2A3942] dark:text-white"
+                                    >
+                                        <option value="personal">Personal</option>
+                                        <option value="grup">Grup</option>
+                                    </select>
+                                </div>
+                            )}
 
                             {data.tipe === 'grup' && (
                                 <div className="mb-4">

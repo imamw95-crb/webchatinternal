@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ConversationNewMessage;
 use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\Message;
@@ -14,7 +15,13 @@ class ChatController extends Controller
 {
     public function main(?Conversation $conversation = null)
     {
-        $userId = Auth::id();
+        $user = Auth::user();
+        $userId = $user->id;
+
+        // Redirect guest users to their chat start page if no conversation is selected
+        if ($user->isGuest() && !$conversation) {
+            return redirect()->route('guest.chat.start');
+        }
 
         $conversations = $this->getConversationsList($userId);
 
@@ -138,45 +145,20 @@ class ChatController extends Controller
 
         broadcast(new MessageSent($message))->toOthers();
 
+        // Broadcast sidebar notification to all members (except sender)
+        $members = $conversation->members()
+            ->where('user_id', '!=', Auth::id())
+            ->pluck('users.id');
+
+        foreach ($members as $memberId) {
+            broadcast(new ConversationNewMessage($memberId, $message));
+        }
+
         if ($request->wantsJson()) {
             return response()->json($message->load('sender:id,name,username'));
         }
 
         return redirect()->back();
-    }
-
-    public function createConversation(Request $request)
-    {
-        $request->validate([
-            'tipe' => 'required|in:personal,grup',
-            'nama_grup' => 'required_if:tipe,grup|string|nullable',
-            'members' => 'required|array|min:1',
-            'members.*' => 'exists:users,id',
-        ]);
-
-        $members = array_unique(array_merge($request->members, [Auth::id()]));
-
-        // Check if personal conversation already exists between these two users
-        if ($request->tipe === 'personal' && count($members) === 2) {
-            $existing = Conversation::where('tipe', 'personal')
-                ->whereHas('members', fn($q) => $q->where('user_id', $members[0]))
-                ->whereHas('members', fn($q) => $q->where('user_id', $members[1]))
-                ->whereDoesntHave('members', fn($q) => $q->whereNotIn('user_id', $members))
-                ->first();
-
-            if ($existing) {
-                return redirect()->route('chat.main', $existing);
-            }
-        }
-
-        $conversation = Conversation::create([
-            'tipe' => $request->tipe,
-            'nama_grup' => $request->nama_grup,
-        ]);
-
-        $conversation->members()->attach($members);
-
-        return redirect()->route('chat.main', $conversation);
     }
 
     public function destroy(Conversation $conversation)
@@ -220,10 +202,61 @@ class ChatController extends Controller
 
     public function users()
     {
-        $users = User::where('id', '!=', Auth::id())
+        $user = Auth::user();
+
+        // Hanya tampilkan user dengan role customer service di daftar anggota
+        $users = User::where('id', '!=', $user->id)
             ->where('status_aktif', true)
-            ->get(['id', 'name', 'username']);
+            ->where('role', User::ROLE_CUSTOMER_SERVICE)
+            ->get(['id', 'name', 'username', 'role']);
 
         return response()->json($users);
+    }
+
+    public function createConversation(Request $request)
+    {
+        $request->validate([
+            'tipe' => 'required|in:personal,grup',
+            'nama_grup' => 'required_if:tipe,grup|string|nullable',
+            'members' => 'required|array|min:1',
+            'members.*' => 'exists:users,id',
+        ]);
+
+        // Semua user hanya bisa membuat percakapan personal dengan customer service
+        if ($request->tipe !== 'personal') {
+            return back()->withErrors(['tipe' => 'Percakapan hanya bisa dibuat dengan tipe personal.']);
+        }
+
+        $notCs = User::whereIn('id', $request->members)
+            ->where('role', '!=', User::ROLE_CUSTOMER_SERVICE)
+            ->exists();
+
+        if ($notCs) {
+            return back()->withErrors(['members' => 'Anda hanya bisa memulai chat dengan customer service.']);
+        }
+
+        $members = array_unique(array_merge($request->members, [Auth::id()]));
+
+        // Check if personal conversation already exists between these two users
+        if ($request->tipe === 'personal' && count($members) === 2) {
+            $existing = Conversation::where('tipe', 'personal')
+                ->whereHas('members', fn($q) => $q->where('user_id', $members[0]))
+                ->whereHas('members', fn($q) => $q->where('user_id', $members[1]))
+                ->whereDoesntHave('members', fn($q) => $q->whereNotIn('user_id', $members))
+                ->first();
+
+            if ($existing) {
+                return redirect()->route('chat.main', $existing);
+            }
+        }
+
+        $conversation = Conversation::create([
+            'tipe' => $request->tipe,
+            'nama_grup' => $request->nama_grup,
+        ]);
+
+        $conversation->members()->attach($members);
+
+        return redirect()->route('chat.main', $conversation);
     }
 }
