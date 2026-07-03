@@ -1,0 +1,14 @@
+{
+    "typescript.enablePromptUseWorkspaceTsdk": false,
+    "typescript.disableAutomaticTypeAcquisition": true,
+    "typescript.tsdk": "",
+    "javascript.suggest.autoImports": false,
+    "typescript.suggest.autoImports": false,
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/vendor": true
+    },
+    "files.exclude": {
+        "**/node_modules": true
+    }
+}

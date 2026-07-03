@@ -31,8 +31,8 @@ window.initializeEcho = function () {
         key: import.meta.env.VITE_REVERB_APP_KEY,
         wsHost: window.location.hostname,
         wsPort: import.meta.env.VITE_REVERB_PORT ?? 8080,
-        wssPort: import.meta.env.VITE_REVERB_PORT ?? 443,
-        forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
+        wssPort: window.location.protocol === 'https:' ? 443 : (import.meta.env.VITE_REVERB_PORT ?? 443),
+        forceTLS: window.location.protocol === 'https:',
         enabledTransports: ['ws', 'wss'],
         authEndpoint: '/broadcasting/auth',
         auth: {
