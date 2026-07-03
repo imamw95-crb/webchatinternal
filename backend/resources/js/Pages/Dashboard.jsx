@@ -64,7 +64,7 @@ function Modal({ show, onClose, title, children }) {
 }
 
 // ─── Main Dashboard ──────────────────────────────────────────────
-export default function Dashboard({ stats, messagesPerDay, usersByRole, conversationsPerDay, isAdmin }) {
+export default function Dashboard({ stats, messagesPerDay, usersByRole, conversationsPerDay, isAdmin, isCs }) {
     const { auth } = usePage().props;
     const [activeTab, setActiveTab] = useState('overview');
 
@@ -252,6 +252,7 @@ export default function Dashboard({ stats, messagesPerDay, usersByRole, conversa
         { icon: '👥', label: 'Total Pengguna', value: stats?.totalUsers, color: 'bg-blue-50 text-blue-600' },
         { icon: '💬', label: 'Total Percakapan', value: stats?.totalConversations, color: 'bg-emerald-50 text-emerald-600' },
         { icon: '✉️', label: 'Total Pesan', value: stats?.totalMessages, color: 'bg-purple-50 text-purple-600' },
+        ...(isCs ? [{ icon: '🔴', label: 'Pesan Belum Dibaca', value: stats?.unreadMessages, color: 'bg-rose-50 text-rose-600' }] : []),
         { icon: '🟢', label: 'Aktif Hari Ini', value: stats?.activeToday, color: 'bg-green-50 text-green-600' },
     ];
 
@@ -295,7 +296,7 @@ export default function Dashboard({ stats, messagesPerDay, usersByRole, conversa
                     {activeTab === 'overview' && (
                         <div className="space-y-8">
                             {/* Stats Cards */}
-                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            <div className={`grid gap-4 sm:grid-cols-2 ${isCs ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
                                 {statCards.map((card, i) => (
                                     <StatCard key={i} {...card} />
                                 ))}

@@ -65,8 +65,13 @@ class AuthenticatedSessionController extends Controller
             return redirect()->intended(route('guest.chat.start', absolute: false));
         }
 
-        // Redirect patients (user role with no_rm) and CS/internal users to chat
-        if ($user->isRegularUser() || $user->isCustomerService() || $user->isUserInternal()) {
+        // Redirect customer service users to dashboard
+        if ($user->isCustomerService()) {
+            return redirect()->intended(route('dashboard', absolute: false));
+        }
+
+        // Redirect patients (user role with no_rm) and internal users to chat
+        if ($user->isRegularUser() || $user->isUserInternal()) {
             return redirect()->intended(route('chat.main', absolute: false));
         }
 

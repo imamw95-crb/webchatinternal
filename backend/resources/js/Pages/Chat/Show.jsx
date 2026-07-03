@@ -1,6 +1,7 @@
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import { showNotification, requestPermission } from '../../Lib/notifications';
 
 export default function ChatShow({ conversation, messages: initialMessages }) {
     const { auth } = usePage().props;
@@ -55,14 +56,11 @@ export default function ChatShow({ conversation, messages: initialMessages }) {
         } catch (e) { /* audio tidak didukung */ }
     }, []);
 
-    // Notifikasi browser
-    const notifyBrowser = useCallback((title, body) => {
-        if (!('Notification' in window)) return;
-        if (Notification.permission === 'granted') {
-            new Notification(title, { body, icon: '/icons/icon.svg', tag: 'chat' });
-        } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission();
-        }
+    // Notifikasi
+    const notify = useCallback(async (title, body) => {
+        try {
+            await showNotification(title, body, { id: Date.now() });
+        } catch (_) {}
         // Update tab title
         document.title = '🔴 ' + title + ' - ' + (import.meta.env.VITE_APP_NAME || 'Laravel');
         setTimeout(() => {
@@ -87,7 +85,7 @@ export default function ChatShow({ conversation, messages: initialMessages }) {
                     const preview = e.tipe_pesan === 'file'
                         ? '📎 ' + (e.file_name || 'File')
                         : e.isi_pesan;
-                    notifyBrowser(senderName, preview);
+                    notify(senderName, preview);
                 }
             });
 
@@ -95,7 +93,7 @@ export default function ChatShow({ conversation, messages: initialMessages }) {
                 channel.stopListening('.message.sent');
             };
         }
-    }, [conversation.id, auth.user.id, playNotificationSound, notifyBrowser]);
+    }, [conversation.id, auth.user.id, playNotificationSound, notify]);
 
     // Mark as read
     useEffect(() => {
@@ -175,18 +173,21 @@ export default function ChatShow({ conversation, messages: initialMessages }) {
         const isTextOnly = data.isi_pesan && !data.file;
         const messageText = data.isi_pesan;
 
+        // Capture file before reset
+        const pendingFile = data.file;
+
         // Optimistic UI: tampilkan pesan langsung
         const tempId = 'temp-' + Date.now();
         const optimisticMessage = {
             id: tempId,
             conversation_id: conversation.id,
             sender_id: auth.user.id,
-            tipe_pesan: 'text',
+            tipe_pesan: pendingFile ? 'file' : 'text',
             isi_pesan: messageText,
             file_path: null,
-            file_type: null,
-            file_name: null,
-            file_size: null,
+            file_type: pendingFile?.type || null,
+            file_name: pendingFile?.name || null,
+            file_size: pendingFile?.size || null,
             read_at: null,
             created_at: new Date().toISOString(),
             sender: { id: auth.user.id, name: auth.user.name, username: auth.user.username },
@@ -210,7 +211,7 @@ export default function ChatShow({ conversation, messages: initialMessages }) {
             } else {
                 const formData = new FormData();
                 if (messageText) formData.append('isi_pesan', messageText);
-                if (data.file) formData.append('file', data.file);
+                if (pendingFile) formData.append('file', pendingFile);
 
                 const res = await axios.post(sendUrl, formData, {
                     onUploadProgress: (e) => {
@@ -242,7 +243,9 @@ export default function ChatShow({ conversation, messages: initialMessages }) {
 
     const handleDragLeave = (e) => {
         e.preventDefault();
-        setDragOver(false);
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+            setDragOver(false);
+        }
     };
 
     const handleDrop = (e) => {
@@ -290,7 +293,7 @@ export default function ChatShow({ conversation, messages: initialMessages }) {
             `}</style>
 
             {/* WhatsApp Header */}
-            <div className="flex items-center gap-3 bg-[#075E54] px-4 py-3 text-white shadow-sm">
+            <div className="safe-area-top flex items-center gap-3 bg-[#075E54] px-4 py-3 text-white shadow-sm">
                 <a
                     href={route('chat.main')}
                     className="flex items-center justify-center rounded-full p-1 hover:bg-white/10"
@@ -317,7 +320,7 @@ export default function ChatShow({ conversation, messages: initialMessages }) {
             {/* Messages */}
             <div
                 id="messages-container"
-                className="chat-bg flex-1 overflow-y-auto px-3 py-3 wa-scroll text-gray-900"
+                className="chat-bg flex-1 overflow-y-auto px-3 py-3 wa-scroll text-gray-900 min-h-0"
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}

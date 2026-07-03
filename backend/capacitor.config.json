@@ -1,0 +1,16 @@
+{
+  "appId": "com.rsmp.patrol.chat",
+  "appName": "RSMP Chat",
+  "webDir": "public",
+  "server": {
+    "url": "http://192.168.200.230",
+    "cleartext": true,
+    "allowNavigation": [
+      "192.168.200.230",
+      "localhost"
+    ]
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

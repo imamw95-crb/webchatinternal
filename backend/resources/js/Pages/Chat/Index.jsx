@@ -47,7 +47,7 @@ export default function ChatIndex({ conversations }) {
             `}</style>
 
             {/* WhatsApp Header */}
-            <div className="flex items-center justify-between bg-[#075E54] px-4 py-3 text-white">
+            <div className="safe-area-top flex items-center justify-between bg-[#075E54] px-4 py-3 text-white">
                 <h1 className="text-lg font-semibold">Chat App</h1>
                 <button
                     onClick={() => setShowCreateModal(true)}

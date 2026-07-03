@@ -43,7 +43,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/chat/{conversation}/send', [ChatController::class, 'sendMessage'])->name('chat.send');
     Route::post('/chat/{conversation}/read', [ChatController::class, 'markAsRead'])->name('chat.read');
     Route::post('/chat/create', [ChatController::class, 'createConversation'])->name('chat.create');
-    Route::delete('/chat/{conversation}', [ChatController::class, 'destroy'])->name('chat.destroy');
+    // Route::delete('/chat/{conversation}', [ChatController::class, 'destroy'])->name('chat.destroy'); // Deleted chat disabled
     Route::get('/users', [ChatController::class, 'users'])->name('users.list');
 });
 

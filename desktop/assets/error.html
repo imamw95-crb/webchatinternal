@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSMP Chat — Tidak Terhubung</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+            padding: 2rem;
+        }
+        .container { max-width: 480px; }
+        .icon {
+            width: 80px;
+            height: 80px;
+            background: #1e293b;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 2.5rem;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; color: #f8fafc; }
+        p { color: #94a3b8; line-height: 1.6; margin-bottom: 1.5rem; }
+        .steps {
+            text-align: left;
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .steps h3 { font-size: 0.9rem; color: #64748b; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .steps ol { padding-left: 1.25rem; }
+        .steps li { margin-bottom: 0.5rem; font-size: 0.9rem; color: #cbd5e1; }
+        .steps li:last-child { margin-bottom: 0; }
+        .steps code {
+            background: #334155;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #38bdf8;
+        }
+        .btn {
+            display: inline-block;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #6366f1; }
+        .btn-secondary {
+            background: #334155;
+            margin-left: 0.5rem;
+        }
+        .btn-secondary:hover { background: #475569; }
+        .url-list {
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        .url-list span { display: inline-block; background: #1e293b; padding: 0.2rem 0.5rem; border-radius: 4px; margin: 0.2rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🔌</div>
+        <h1>Tidak dapat terhubung</h1>
+        <p>Server backend sedang tidak berjalan atau tidak dapat dijangkau.</p>
+
+        <div class="steps">
+            <h3>Langkah</h3>
+            <ol>
+                <li>Jalankan Laragon</li>
+                <li>Pastikan <code>chat.test</code> bisa diakses di browser</li>
+                <li>Klik tombol <strong>Coba Lagi</strong> di bawah</li>
+            </ol>
+            <div class="url-list">
+                Mencoba: <span>chat.test</span> <span>localhost</span> <span>localhost:8000</span> <span>127.0.0.1:8000</span>
+            </div>
+        </div>
+
+        <button class="btn" onclick="location.reload()">🔄 Coba Lagi</button>
+        <button class="btn btn-secondary" id="helpBtn" onclick="openHelp()">Bantuan</button>
+    </div>
+
+    <script>
+        function openHelp() {
+            if (window.electronAPI && window.electronAPI.openExternal) {
+                window.electronAPI.openExternal('https://github.com/imamw95-crb/webchatinternal');
+            } else {
+                window.open('https://github.com/imamw95-crb/webchatinternal', '_blank');
+            }
+        }
+        // Auto-retry every 30 seconds
+        setTimeout(() => location.reload(), 30000);
+    </script>
+</body>
+</html>

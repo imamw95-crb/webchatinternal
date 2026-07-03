@@ -9,6 +9,8 @@ use App\Models\Message;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ChatController extends Controller
@@ -132,13 +134,35 @@ class ChatController extends Controller
 
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            $path = $file->store('uploads/' . date('Y/m/d') . '/' . Auth::id(), 'public');
 
-            $messageData['tipe_pesan'] = 'file';
-            $messageData['file_path'] = $path;
-            $messageData['file_type'] = $file->getMimeType();
-            $messageData['file_name'] = $file->getClientOriginalName();
-            $messageData['file_size'] = $file->getSize();
+            if ($file->isValid()) {
+                try {
+                    $path = $file->store('uploads/' . date('Y/m/d') . '/' . Auth::id(), 'public');
+
+                    $messageData['tipe_pesan'] = 'file';
+                    $messageData['file_path'] = $path;
+                    $messageData['file_type'] = $file->getMimeType();
+                    $messageData['file_name'] = $file->getClientOriginalName();
+                    $messageData['file_size'] = $file->getSize();
+                } catch (\ValueError $e) {
+                    Log::warning('File store failed (getRealPath issue), trying fallback...', [
+                        'file' => $file->getClientOriginalName(),
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    // Fallback: read content directly and store manually
+                    $path = 'uploads/' . date('Y/m/d') . '/' . Auth::id() . '/' . $file->hashName();
+                    $stored = Storage::disk('public')->put($path, (string) $file->get());
+
+                    if ($stored) {
+                        $messageData['tipe_pesan'] = 'file';
+                        $messageData['file_path'] = $path;
+                        $messageData['file_type'] = $file->getMimeType();
+                        $messageData['file_name'] = $file->getClientOriginalName();
+                        $messageData['file_size'] = $file->getSize();
+                    }
+                }
+            }
         }
 
         $message = Message::create($messageData);
@@ -204,11 +228,19 @@ class ChatController extends Controller
     {
         $user = Auth::user();
 
-        // Hanya tampilkan user dengan role customer service di daftar anggota
-        $users = User::where('id', '!=', $user->id)
-            ->where('status_aktif', true)
-            ->where('role', User::ROLE_CUSTOMER_SERVICE)
-            ->get(['id', 'name', 'username', 'role']);
+        $query = User::where('id', '!=', $user->id)
+            ->where('status_aktif', true);
+
+        if ($user->isUserInternal()) {
+            // Internal: hanya lihat admin, CS, dan internal lainnya
+            $query->whereIn('role', [User::ROLE_ADMIN, User::ROLE_CUSTOMER_SERVICE, User::ROLE_USER_INTERNAL]);
+        } elseif ($user->isRegularUser() || $user->isGuest()) {
+            // User biasa / guest: hanya lihat customer service
+            $query->where('role', User::ROLE_CUSTOMER_SERVICE);
+        }
+        // Admin / CS: lihat semua user aktif (tanpa filter tambahan)
+
+        $users = $query->get(['id', 'name', 'username', 'role']);
 
         return response()->json($users);
     }
@@ -222,17 +254,30 @@ class ChatController extends Controller
             'members.*' => 'exists:users,id',
         ]);
 
-        // Semua user hanya bisa membuat percakapan personal dengan customer service
-        if ($request->tipe !== 'personal') {
-            return back()->withErrors(['tipe' => 'Percakapan hanya bisa dibuat dengan tipe personal.']);
+        $user = Auth::user();
+
+        $allowedRoles = [];
+
+        if ($user->isUserInternal()) {
+            // Internal: hanya bisa chat dengan admin, CS, dan internal
+            $allowedRoles = [User::ROLE_ADMIN, User::ROLE_CUSTOMER_SERVICE, User::ROLE_USER_INTERNAL];
+        } elseif ($user->isRegularUser() || $user->isGuest()) {
+            // User biasa / guest: hanya bisa chat dengan customer service
+            if ($request->tipe !== 'personal') {
+                return back()->withErrors(['tipe' => 'Percakapan hanya bisa dibuat dengan tipe personal.']);
+            }
+            $allowedRoles = [User::ROLE_CUSTOMER_SERVICE];
         }
+        // Admin / CS: bisa chat dengan siapapun (allowedRoles tetap [] = tidak ada filter)
 
-        $notCs = User::whereIn('id', $request->members)
-            ->where('role', '!=', User::ROLE_CUSTOMER_SERVICE)
-            ->exists();
+        if (!empty($allowedRoles)) {
+            $notAllowed = User::whereIn('id', $request->members)
+                ->whereNotIn('role', $allowedRoles)
+                ->exists();
 
-        if ($notCs) {
-            return back()->withErrors(['members' => 'Anda hanya bisa memulai chat dengan customer service.']);
+            if ($notAllowed) {
+                return back()->withErrors(['members' => 'Anda tidak bisa memulai chat dengan user tersebut.']);
+            }
         }
 
         $members = array_unique(array_merge($request->members, [Auth::id()]));

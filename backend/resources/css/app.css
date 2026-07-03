@@ -90,9 +90,19 @@ html {
     -webkit-overflow-scrolling: touch;
 }
 
-/* Safe area padding for iOS notch/home indicator */
-@supports (padding: env(safe-area-inset-bottom)) {
-    .safe-area-bottom {
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
-    }
+/* Safe area padding for notches (iOS) and bottom navigation */
+.safe-area-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+}
+
+/* Android: status bar is solid (set by theme), so NO extra padding needed on top.
+   iOS: still needs safe-area-inset-top for notch. */
+.safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* dvh fallback for older Android WebViews */
+.dvh-fallback {
+    height: 100vh;
+    height: 100dvh;
 }

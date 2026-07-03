@@ -25,6 +25,13 @@ class DashboardController extends Controller
         $totalMessages = Message::count();
         $activeToday = User::where('last_seen_at', '>=', now()->subDay())->count();
 
+        // Unread messages (from non-CS users, not yet read)
+        $csRole = User::ROLE_CUSTOMER_SERVICE;
+        $unreadMessages = Message::whereNull('read_at')
+            ->whereHas('sender', fn($q) => $q->where('role', '!=', $csRole))
+            ->whereHas('conversation.members', fn($q) => $q->where('role', $csRole))
+            ->count();
+
         // Messages per day (last 14 days)
         $messagesPerDay = Message::select(
             DB::raw('DATE(created_at) as date'),
@@ -78,11 +85,13 @@ class DashboardController extends Controller
                 'totalConversations' => $totalConversations,
                 'totalMessages' => $totalMessages,
                 'activeToday' => $activeToday,
+                'unreadMessages' => $unreadMessages,
             ],
             'messagesPerDay' => $dates,
             'usersByRole' => $usersByRole,
             'conversationsPerDay' => $convDates,
             'isAdmin' => $user->isAdmin(),
+            'isCs' => $user->isCustomerService(),
         ]);
     }
 

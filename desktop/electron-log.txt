@@ -1,0 +1,4 @@
+
+Loading: http://chat.test
+Page loaded: "APP Chat Internal RSMP Patrol"
+Page info: title="APP Chat Internal RSMP Patrol" url="http://chat.test/" bodyLen=3632 hasApp=true state=complete

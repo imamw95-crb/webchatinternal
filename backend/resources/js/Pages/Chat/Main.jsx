@@ -1,6 +1,7 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
+import { showNotification } from '../../Lib/notifications';
 
 export default function ChatMain({ conversations, activeConversation, messages: initialMessages }) {
     const { auth } = usePage().props;
@@ -8,7 +9,6 @@ export default function ChatMain({ conversations, activeConversation, messages: 
     const [showMenu, setShowMenu] = useState(false);
     const [users, setUsers] = useState([]);
     const [mobileView, setMobileView] = useState(activeConversation ? 'chat' : 'list');
-    const [confirmDelete, setConfirmDelete] = useState(null);
     const menuRef = useRef(null);
     const { data, setData, post, processing } = useForm({
         tipe: 'personal',
@@ -54,20 +54,6 @@ export default function ChatMain({ conversations, activeConversation, messages: 
         router.post(route('logout'));
     };
 
-    const handleDeleteConversation = async (id) => {
-        try {
-            await axios.delete('/chat/' + id);
-            if (conv?.id === id) {
-                router.get('/chat');
-            } else {
-                router.reload();
-            }
-        } catch (err) {
-            console.error('Delete failed:', err);
-        }
-        setConfirmDelete(null);
-    };
-
     // Sync messages & conversations when activeConversation changes
     useEffect(() => {
         setMessages(initialMsgs?.data || []);
@@ -110,13 +96,11 @@ export default function ChatMain({ conversations, activeConversation, messages: 
         } catch (e) { /* audio not supported */ }
     }, []);
 
-    const notifyBrowser = useCallback((title, body) => {
-        if (!('Notification' in window)) return;
-        if (Notification.permission === 'granted') {
-            new Notification(title, { body, icon: '/icons/icon.svg', tag: 'chat' });
-        } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission();
-        }
+    // Notifikasi
+    const notify = useCallback(async (title, body) => {
+        try {
+            await showNotification(title, body, { id: Date.now() });
+        } catch (_) {}
     }, []);
 
     // Echo real-time — listen on active conversation channel
@@ -158,7 +142,7 @@ export default function ChatMain({ conversations, activeConversation, messages: 
                     playNotificationSound();
                     const senderName = e.sender?.name || 'Seseorang';
                     const preview = e.tipe_pesan === 'file' ? '📎 ' + (e.file_name || 'File') : e.isi_pesan;
-                    notifyBrowser(senderName, preview);
+                    notify(senderName, preview);
                 }
             });
             return () => channel.stopListening('.message.sent');
@@ -381,7 +365,7 @@ export default function ChatMain({ conversations, activeConversation, messages: 
     };
 
     return (
-        <div className="flex flex-col sm:flex-row" style={{ height: '100dvh' }}>
+        <div className="flex flex-col sm:flex-row dvh-fallback" style={{ height: '100dvh' }}>
             <Head title={conv ? conversationName : 'Chat'} />
             <style>{`
                 .wa-bubble-mine { background-color: #D9FDD3; border-radius: 8px 0 8px 8px; }
@@ -404,7 +388,7 @@ export default function ChatMain({ conversations, activeConversation, messages: 
             {/* ===== SIDEBAR: Conversation List ===== */}
             <div className={`${mobileView === 'chat' && conv ? 'hidden' : 'flex'} sm:flex w-full sm:w-[350px] lg:w-[400px] flex-col border-r border-gray-200 bg-white shrink-0`}>
                 {/* Header */}
-                <div className="flex items-center justify-between bg-[#075E54] px-4 py-3 text-white">
+                <div className="safe-area-top flex items-center justify-between bg-[#075E54] px-4 py-3 text-white">
                     <div className="relative" ref={menuRef}>
                         <button onClick={() => setShowMenu(!showMenu)}
                             className="flex items-center gap-2 rounded-full py-1 pr-2 hover:bg-white/10">
@@ -440,56 +424,88 @@ export default function ChatMain({ conversations, activeConversation, messages: 
                         </svg>
                     </button>
                 </div>
-                {/* Search */}
+                {/* Search — WA style */}
                 <div className="bg-white px-3 py-2">
-                    <div className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2">
-                        <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
+                    <div className="flex items-center gap-3 rounded-lg bg-[#F0F2F5] px-4 py-2">
+                        <svg className="h-5 w-5 shrink-0 text-[#54656F]" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
                         </svg>
-                        <input type="text" placeholder="Cari atau mulai chat baru" className="w-full bg-transparent text-sm outline-none" />
+                        <input type="text" placeholder="Cari atau mulai chat baru" className="w-full bg-transparent text-sm outline-none text-[#111B21] placeholder-[#667781]" />
+                        <svg className="h-5 w-5 shrink-0 text-[#54656F]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </div>
                 </div>
                 {/* List */}
                 <div className="flex-1 overflow-y-auto wa-scroll">
                     {convList.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-                            <p className="text-sm">Belum ada percakapan</p>
+                        <div className="flex flex-1 flex-col items-center justify-center px-8 text-center text-[#667781]">
+                            <svg className="mb-6 h-24 w-24 opacity-40" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
+                                <path d="M7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/>
+                            </svg>
+                            <p className="text-sm font-medium">Belum ada percakapan</p>
+                            <p className="mt-1 text-xs">Tap ikon + untuk memulai chat</p>
                         </div>
                     ) : (
                         convList.map((c) => {
                             const ou = c.members?.filter((m) => m.id !== auth.user.id);
                             const name = c.tipe === 'grup' ? c.nama_grup : ou?.map((m) => m.name).join(', ');
-                            const init = c.tipe === 'grup' ? (c.nama_grup || 'G').charAt(0).toUpperCase()
-                                : ou?.map((m) => m.name.charAt(0).toUpperCase()).join('');
+                            const initLetter = c.tipe === 'grup' ? (c.nama_grup || 'G').charAt(0).toUpperCase()
+                                : (ou?.[0]?.name || '?').charAt(0).toUpperCase();
                             const isActive = conv?.id === c.id;
+                            // Format timestamp like WA
+                            const fmtTime = (ts) => {
+                                if (!ts) return '';
+                                const d = new Date(ts);
+                                const now = new Date();
+                                const diff = now - d;
+                                const oneDay = 86400000;
+                                if (diff < oneDay && d.getDate() === now.getDate()) {
+                                    return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                                }
+                                if (diff < 2 * oneDay && (d.getDate() === now.getDate() - 1 || (now.getDay() === 0 && d.getDay() === 6))) {
+                                    return 'Kemarin';
+                                }
+                                if (diff < 7 * oneDay) {
+                                    return d.toLocaleDateString('id-ID', { weekday: 'short' });
+                                }
+                                return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+                            };
+                            // Preview text
+                            const previewText = c.last_message?.tipe_pesan === 'file'
+                                ? '📎 ' + (c.last_message.file_name || 'File')
+                                : (c.last_message?.isi_pesan || '');
                             return (
                                 <div key={c.id}
                                     onClick={() => selectConversation(c.id)}
-                                    className={`flex cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-3 transition-colors ${
+                                    className={`flex cursor-pointer items-center gap-3 border-b border-[#F0F2F5] px-4 py-3 transition-colors ${
                                         isActive ? 'bg-[#F0F2F5]' : 'hover:bg-gray-50'
                                     }`}>
+                                    {/* Avatar with online dot */}
                                     <div className="relative shrink-0">
                                         <div className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold ${
-                                            isActive ? 'bg-[#075E54] text-white' : 'bg-gray-200 text-gray-600'
-                                        }`}>{init}</div>
+                                            isActive ? 'bg-[#075E54] text-white' : 'bg-[#DFE5E7] text-[#54656F]'
+                                        }`}>{initLetter}</div>
                                         {c.unread_count > 0 && (
-                                            <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#25D366] px-1.5 text-[11px] font-bold text-white">
+                                            <span className="absolute -right-1 -top-1 z-10 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#25D366] px-1.5 text-[11px] font-bold text-white shadow">
                                                 {c.unread_count > 99 ? '99+' : c.unread_count}
                                             </span>
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-baseline justify-between">
-                                            <h3 className={`truncate text-base ${c.unread_count > 0 ? 'font-semibold' : ''}`}>{name}</h3>
-                                            <span className="ml-2 shrink-0 text-[11px] text-gray-500">
-                                                {c.last_message?.created_at ? formatTime(c.last_message.created_at) : ''}
+                                            <h3 className={`truncate text-[15px] ${c.unread_count > 0 ? 'font-semibold text-[#111B21]' : 'text-[#111B21]'}`}>{name}</h3>
+                                            <span className="ml-2 shrink-0 text-[12px] text-[#667781]">
+                                                {fmtTime(c.last_message?.created_at)}
                                             </span>
                                         </div>
-                                        <p className={`truncate text-sm ${c.unread_count > 0 ? 'text-gray-700 font-medium' : 'text-gray-500'}`}>
-                                            {c.last_message?.tipe_pesan === 'file'
-                                                ? '📎 ' + (c.last_message.file_name || 'File')
-                                                : (c.last_message?.isi_pesan || '')}
-                                        </p>
+                                        <div className="flex items-center gap-1">
+                                            {c.last_message?.sender_id === auth.user.id && (
+                                                <span className="text-[11px] text-[#8696A0]">✓✓</span>
+                                            )}
+                                            <p className={`truncate text-[14px] ${c.unread_count > 0 ? 'text-[#3B4A54] font-medium' : 'text-[#667781]'}`}>
+                                                {previewText || (c.tipe === 'grup' ? (ou?.map(m => m.name).join(', ') || '') : '')}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -499,7 +515,7 @@ export default function ChatMain({ conversations, activeConversation, messages: 
             </div>
 
             {/* ===== MAIN: Chat View ===== */}
-            <div className={`${!conv || mobileView === 'list' ? 'hidden' : 'flex'} sm:flex flex-1 flex-col`}
+            <div className={`${!conv || mobileView === 'list' ? 'hidden' : 'flex'} sm:flex flex-1 flex-col min-h-0`}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); }}
                 onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFileSelect(f); }}>
@@ -513,7 +529,7 @@ export default function ChatMain({ conversations, activeConversation, messages: 
                 ) : (
                     <>
                         {/* Chat Header */}
-                        <div className="flex items-center gap-3 bg-[#075E54] px-4 py-3 text-white shadow-sm">
+                        <div className="safe-area-top flex items-center gap-3 bg-[#075E54] px-4 py-3 text-white shadow-sm">
                             <button onClick={() => setMobileView('list')} className="relative flex sm:hidden items-center justify-center rounded-full p-1 hover:bg-white/10">
                                 <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
@@ -536,19 +552,13 @@ export default function ChatMain({ conversations, activeConversation, messages: 
                                         : (isOnline(otherMembers[0]) ? 'online' : lastSeenText(otherMembers[0]))}
                                 </p>
                             </div>
-                            <button onClick={() => setConfirmDelete(conv.id)}
-                                className="shrink-0 rounded-full p-2 hover:bg-white/10"
-                                title="Hapus percakapan">
-                                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                </svg>
-                            </button>
+
                         </div>
 
                         {/* Messages */}
-                        <div id="messages-container" className="chat-bg flex-1 overflow-y-auto px-3 pt-3 pb-20 wa-scroll text-gray-900"
+                        <div id="messages-container" className="chat-bg flex-1 overflow-y-auto px-3 pt-3 pb-20 wa-scroll text-gray-900 min-h-0"
                             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
-                            onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
+                            onDragLeave={(e) => { e.preventDefault(); if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); }}
                             onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFileSelect(f); }}>
                             {loading && <div className="py-4 text-center text-xs text-gray-500">Memuat pesan lama...</div>}
                             <div className="space-y-1">
@@ -748,35 +758,7 @@ export default function ChatMain({ conversations, activeConversation, messages: 
                 </div>
             )}
 
-            {/* Delete Confirmation Modal */}
-            {confirmDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-                        <div className="mb-4 text-center">
-                            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
-                                <svg className="h-7 w-7 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                </svg>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-900">Hapus Percakapan?</h3>
-                            <p className="mt-2 text-sm text-gray-500">
-                                Pesan di percakapan ini akan dihapus untuk kamu. 
-                                Tindakan ini tidak bisa dibatalkan.
-                            </p>
-                        </div>
-                        <div className="flex gap-3">
-                            <button onClick={() => setConfirmDelete(null)}
-                                className="flex-1 rounded-lg bg-gray-100 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200">
-                                Batal
-                            </button>
-                            <button onClick={() => handleDeleteConversation(confirmDelete)}
-                                className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-medium text-white hover:bg-red-700">
-                                Hapus
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+
         </div>
     );
 }

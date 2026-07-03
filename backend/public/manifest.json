@@ -1,12 +1,14 @@
 {
-    "name": "Chat App",
-    "short_name": "ChatApp",
-    "description": "Aplikasi Chat Internal Multi-Platform",
+    "name": "APP Chat Internal RSMP Patrol",
+    "short_name": "RSMP Chat",
+    "description": "Aplikasi Chat Internal untuk RSMP Patrol — komunikasi real-time antar unit.",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#ffffff",
+    "background_color": "#0f172a",
     "theme_color": "#4f46e5",
     "orientation": "portrait-primary",
+    "scope": "/",
+    "id": "/",
     "icons": [
         {
             "src": "/icons/icon-72x72.png",
@@ -46,11 +48,31 @@
         {
             "src": "/icons/icon-512x512.png",
             "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/icon-512x512-maskable.png",
+            "sizes": "512x512",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "maskable"
+        },
+        {
+            "src": "/icons/icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
         }
     ],
-    "categories": ["business", "communication"],
+    "screenshots": [],
+    "categories": ["business", "communication", "social"],
     "lang": "id-ID",
-    "dir": "ltr"
+    "dir": "ltr",
+    "prefer_related_applications": false,
+    "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+    "launch_handler": {
+        "client_mode": "focus-existing"
+    },
+    "edge_side_panel": {
+        "preferred_width": 400
+    }
 }

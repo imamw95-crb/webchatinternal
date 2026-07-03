@@ -17,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/imamw95-crb/webchatinternal/issues"
   },
-  "homepage": "https://github.com/imamw95-crb/webchatinternal#readme"
+  "homepage": "https://github.com/imamw95-crb/webchatinternal#readme",
+  "devDependencies": {
+    "sharp": "^0.35.3"
+  }
 }

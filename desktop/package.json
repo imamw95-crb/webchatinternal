@@ -1,0 +1,56 @@
+{
+    "name": "rsmp-chat-desktop",
+    "version": "1.0.0",
+    "description": "APP Chat Internal RSMP Patrol — Desktop App",
+    "main": "main.js",
+    "author": "RSMP Patrol",
+    "license": "MIT",
+    "scripts": {
+        "start": "electron .",
+        "dev": "electron . --dev",
+        "build": "electron-builder build --win",
+        "build:dir": "electron-builder build --win --dir",
+        "pack": "electron-builder --win --x64",
+        "dist": "electron-builder --win --x64 --publish never"
+    },
+    "devDependencies": {
+        "electron": "^33.0.0",
+        "electron-builder": "^25.1.0"
+    },
+    "build": {
+        "appId": "com.rsmp.patrol.chat",
+        "productName": "RSMP Chat",
+        "directories": {
+            "output": "dist",
+            "buildResources": "assets"
+        },
+        "files": [
+            "main.js",
+            "preload.js",
+            "assets/**/*"
+        ],
+        "win": {
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": ["x64"]
+                }
+            ],
+            "icon": "assets/icon.png",
+            "artifactName": "RSMP-Chat-Setup-${version}.${ext}",
+            "signAndEditExecutable": false
+        },
+        "nsis": {
+            "oneClick": false,
+            "perMachine": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "RSMP Chat",
+            "license": "LICENSE.txt"
+        },
+        "extraMetadata": {
+            "main": "main.js"
+        }
+    }
+}
