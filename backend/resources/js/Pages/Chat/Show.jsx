@@ -151,7 +151,7 @@ export default function ChatShow({ conversation, messages: initialMessages }) {
             'text/plain', 'text/csv',
         ];
 
-        if (!allowedTypes.includes(file.type) && !file.type.startsWith('image/')) {
+        if (file.type && !allowedTypes.includes(file.type) && !file.type.startsWith('image/')) {
             alert('Tipe file tidak didukung');
             return;
         }
@@ -272,7 +272,12 @@ export default function ChatShow({ conversation, messages: initialMessages }) {
     };
 
     return (
-        <div className="flex h-screen flex-col">
+        <div
+            className="relative flex h-screen flex-col"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
             <Head title={conversationName} />
             <style>{`
                 .wa-bubble-mine {
@@ -321,9 +326,6 @@ export default function ChatShow({ conversation, messages: initialMessages }) {
             <div
                 id="messages-container"
                 className="chat-bg flex-1 overflow-y-auto px-3 py-3 wa-scroll text-gray-900 min-h-0"
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
             >
                 {loading && (
                     <div className="py-4 text-center text-xs text-[#667781]">

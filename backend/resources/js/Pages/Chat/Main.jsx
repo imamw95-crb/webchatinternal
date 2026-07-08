@@ -237,7 +237,7 @@ export default function ChatMain({ conversations, activeConversation, messages: 
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'application/msword','application/vnd.ms-excel','text/plain','text/csv'];
-        if (!allowedTypes.includes(file.type) && !file.type.startsWith('image/')) {
+        if (file.type && !allowedTypes.includes(file.type) && !file.type.startsWith('image/')) {
             alert('Tipe file tidak didukung'); return;
         }
         setFilePreview({ name: file.name, size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
@@ -515,9 +515,9 @@ export default function ChatMain({ conversations, activeConversation, messages: 
             </div>
 
             {/* ===== MAIN: Chat View ===== */}
-            <div className={`${!conv || mobileView === 'list' ? 'hidden' : 'flex'} sm:flex flex-1 flex-col min-h-0`}
+            <div className={`${!conv || mobileView === 'list' ? 'hidden' : 'flex'} sm:flex flex-1 flex-col min-h-0 relative`}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); }}
+                onDragLeave={(e) => { e.preventDefault(); if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false); }}
                 onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFileSelect(f); }}>
                 {!conv ? (
                     <div className="hidden sm:flex flex-1 flex-col items-center justify-center bg-gray-50 text-gray-400">

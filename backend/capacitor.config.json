@@ -3,10 +3,10 @@
   "appName": "RSMP Chat",
   "webDir": "public",
   "server": {
-    "url": "http://192.168.200.230",
-    "cleartext": true,
+    "url": "https://chat.cloudnod.my.id",
+    "cleartext": false,
     "allowNavigation": [
-      "192.168.200.230",
+      "chat.cloudnod.my.id",
       "localhost"
     ]
   },

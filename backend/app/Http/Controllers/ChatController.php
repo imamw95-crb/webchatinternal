@@ -10,7 +10,6 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ChatController extends Controller
@@ -122,7 +121,13 @@ class ChatController extends Controller
 
         $request->validate([
             'isi_pesan' => 'required_without:file|string|nullable',
-            'file' => 'nullable|file|max:20480|mimes:jpg,jpeg,png,pdf,docx,xlsx,doc,xls,txt,csv',
+            'file' => ['nullable', 'file', 'max:20480', function ($attribute, $value, $fail) {
+                $allowed = ['jpg', 'jpeg', 'png', 'pdf', 'docx', 'xlsx', 'doc', 'xls', 'txt', 'csv'];
+                $ext = strtolower($value->getClientOriginalExtension());
+                if (!in_array($ext, $allowed)) {
+                    $fail('Tipe file tidak didukung.');
+                }
+            }],
         ]);
 
         $messageData = [
@@ -136,32 +141,30 @@ class ChatController extends Controller
             $file = $request->file('file');
 
             if ($file->isValid()) {
-                try {
-                    $path = $file->store('uploads/' . date('Y/m/d') . '/' . Auth::id(), 'public');
+                // Read file metadata BEFORE moving
+                $fileType = $file->getClientMimeType();
+                $fileName = $file->getClientOriginalName();
+                $fileSize = $file->getSize();
+                $fileExt = $file->getClientOriginalExtension();
 
-                    $messageData['tipe_pesan'] = 'file';
-                    $messageData['file_path'] = $path;
-                    $messageData['file_type'] = $file->getMimeType();
-                    $messageData['file_name'] = $file->getClientOriginalName();
-                    $messageData['file_size'] = $file->getSize();
-                } catch (\ValueError $e) {
-                    Log::warning('File store failed (getRealPath issue), trying fallback...', [
-                        'file' => $file->getClientOriginalName(),
-                        'error' => $e->getMessage(),
-                    ]);
+                // Use move() directly to bypass Laravel/Symfony filesystem (requires ext-fileinfo)
+                $relativeDir = 'uploads/' . date('Y/m/d') . '/' . Auth::id();
+                $filename = uniqid() . '.' . $fileExt;
+                $absoluteDir = public_path('storage/' . $relativeDir);
 
-                    // Fallback: read content directly and store manually
-                    $path = 'uploads/' . date('Y/m/d') . '/' . Auth::id() . '/' . $file->hashName();
-                    $stored = Storage::disk('public')->put($path, (string) $file->get());
-
-                    if ($stored) {
-                        $messageData['tipe_pesan'] = 'file';
-                        $messageData['file_path'] = $path;
-                        $messageData['file_type'] = $file->getMimeType();
-                        $messageData['file_name'] = $file->getClientOriginalName();
-                        $messageData['file_size'] = $file->getSize();
-                    }
+                if (!is_dir($absoluteDir)) {
+                    mkdir($absoluteDir, 0755, true);
                 }
+
+                $file->move($absoluteDir, $filename);
+
+                $path = $relativeDir . '/' . $filename;
+
+                $messageData['tipe_pesan'] = 'file';
+                $messageData['file_path'] = $path;
+                $messageData['file_type'] = $fileType;
+                $messageData['file_name'] = $fileName;
+                $messageData['file_size'] = $fileSize;
             }
         }
 

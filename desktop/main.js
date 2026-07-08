@@ -17,7 +17,7 @@ const fs = require('fs');
 // ============================================================
 const isDev = process.argv.includes('--dev');
 const APP_NAME = 'RSMP Chat';
-const APP_URL = 'http://chat.test';
+const APP_URL = 'https://chat.cloudnod.my.id';
 
 let mainWindow = null;
 let tray = null;
