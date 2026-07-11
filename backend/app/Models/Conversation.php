@@ -14,10 +14,6 @@ class Conversation extends Model
         'nama_grup',
     ];
 
-    protected $casts = [
-        'tipe' => 'string',
-    ];
-
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'conversation_members')

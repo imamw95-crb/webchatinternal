@@ -81,14 +81,6 @@ class User extends Authenticatable
         return in_array($this->role, $roles, true);
     }
 
-    /**
-     * Find user by username for authentication.
-     */
-    public function findForPassport(string $username): self
-    {
-        return self::where('username', $username)->first();
-    }
-
     public function conversations(): BelongsToMany
     {
         return $this->belongsToMany(Conversation::class, 'conversation_members')

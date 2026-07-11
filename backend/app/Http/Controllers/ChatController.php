@@ -48,21 +48,19 @@ class ChatController extends Controller
     private function getConversationsList($userId)
     {
         return Conversation::whereHas('members', fn($q) => $q->where('user_id', $userId))
-            ->with(['members:id,name,username,last_seen_at', 'messages' => function ($q) {
+            ->with(['members:id,name,username,last_seen_at'])
+            ->with(['messages' => function ($q) {
                 $q->latest()->take(1);
+            }])
+            ->withCount(['messages as unread_count' => function ($q) use ($userId) {
+                $q->where('sender_id', '!=', $userId)->whereNull('read_at');
             }])
             ->get()
             ->map(function ($conv) use ($userId) {
                 $lastMessage = $conv->messages->first();
                 unset($conv->messages);
 
-                $unreadCount = Message::where('conversation_id', $conv->id)
-                    ->where('sender_id', '!=', $userId)
-                    ->whereNull('read_at')
-                    ->count();
-
                 $conv->last_message = $lastMessage;
-                $conv->unread_count = $unreadCount;
                 return $conv;
             })
             ->sortByDesc(function ($conv) {
@@ -101,14 +99,6 @@ class ChatController extends Controller
             ->orderBy('created_at')
             ->paginate(50);
 
-        if ($request->has('before')) {
-            $messages = $conversation->messages()
-                ->with('sender:id,name,username')
-                ->where('id', '<', $request->before)
-                ->orderBy('created_at')
-                ->paginate(50);
-        }
-
         return response()->json($messages);
     }
 
@@ -121,7 +111,7 @@ class ChatController extends Controller
         $request->validate([
             'isi_pesan' => 'required_without:file|string|nullable',
             'file' => ['nullable', 'file', 'max:20480', function ($attribute, $value, $fail) {
-                $allowed = ['jpg', 'jpeg', 'png', 'pdf', 'docx', 'xlsx', 'doc', 'xls', 'txt', 'csv'];
+                $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'pdf', 'docx', 'xlsx', 'doc', 'xls', 'txt', 'csv'];
                 $ext = strtolower($value->getClientOriginalExtension());
                 if (!in_array($ext, $allowed)) {
                     $fail('Tipe file tidak didukung.');
@@ -146,7 +136,10 @@ class ChatController extends Controller
                 $fileSize = $file->getSize();
                 $fileExt = $file->getClientOriginalExtension();
 
-                // Use move() directly to bypass Laravel/Symfony filesystem (requires ext-fileinfo)
+                // Use move() directly to bypass Laravel/Symfony filesystem (the
+                // production server has no ext-fileinfo). public/storage is a symlink
+                // to storage/app/public, so this lands in the same served location
+                // as the "public" disk would.
                 $relativeDir = 'uploads/' . date('Y/m/d') . '/' . Auth::id();
                 $filename = uniqid() . '.' . $fileExt;
                 $absoluteDir = public_path('storage/' . $relativeDir);

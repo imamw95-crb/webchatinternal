@@ -54,6 +54,15 @@ export default function ChatMain({ conversations, activeConversation, messages: 
         router.post(route('logout'));
     };
 
+    // Clear selected file + preview, releasing the object URL to avoid leaks
+    const clearFileSelection = useCallback(() => {
+        setFilePreview((prev) => {
+            if (prev?.url) URL.revokeObjectURL(prev.url);
+            return null;
+        });
+        setSelectedFile(null);
+    }, []);
+
     // Sync messages & conversations when activeConversation changes
     useEffect(() => {
         setMessages(initialMsgs?.data || []);
@@ -233,7 +242,7 @@ export default function ChatMain({ conversations, activeConversation, messages: 
         if (!file) return;
         const maxSize = 20 * 1024 * 1024;
         if (file.size > maxSize) { alert('Ukuran file maksimal 20MB'); return; }
-        const allowedTypes = ['image/jpeg','image/png','image/jpg','application/pdf',
+        const allowedTypes = ['image/jpeg','image/png','image/jpg','image/gif','image/webp','image/bmp','application/pdf',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'application/msword','application/vnd.ms-excel','text/plain','text/csv'];
@@ -262,8 +271,7 @@ export default function ChatMain({ conversations, activeConversation, messages: 
         setMessages((prev) => [...prev, optimisticMessage]);
         const textVal = msgText;
         setMsgText('');
-        setFilePreview(null);
-        setSelectedFile(null);
+        clearFileSelection();
 
         const sendUrl = '/chat/' + conv.id + '/send';
         try {
@@ -631,7 +639,7 @@ export default function ChatMain({ conversations, activeConversation, messages: 
                                         <p className="truncate text-sm font-medium">{filePreview.name}</p>
                                         <p className="text-xs text-gray-500">{filePreview.size}</p>
                                     </div>
-                                    <button onClick={() => { setFilePreview(null); setSelectedFile(null); }}
+                                    <button onClick={() => clearFileSelection()}
                                         className="text-gray-500 hover:text-gray-700">
                                         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                                             <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
